@@ -35,14 +35,8 @@ jobs:
         working-directory: CaravanMobile
         run: npm ci
 
-      - name: Build iOS app with EAS
+      - name: Build and Submit to TestFlight
         working-directory: CaravanMobile
-        run: eas build --platform ios --profile production --non-interactive --no-wait
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      - name: Submit to TestFlight
-        working-directory: CaravanMobile
-        run: eas submit --platform ios --latest --non-interactive
+        run: eas build --platform ios --profile production --auto-submit --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
