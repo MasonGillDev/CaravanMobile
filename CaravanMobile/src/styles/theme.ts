@@ -1,25 +1,40 @@
+// Caravan Design System - "Journey Together"
+// A warm, inviting color palette inspired by desert caravans and sunsets
+
 export const theme = {
   colors: {
-    primary: '#2563EB',
-    secondary: '#7C3AED',
-    success: '#10B981',
-    danger: '#EF4444',
-    warning: '#F59E0B',
-    info: '#3B82F6',
-    dark: '#1F2937',
-    light: '#F9FAFB',
-    white: '#FFFFFF',
-    black: '#000000',
+    // Brand Colors
+    primary: '#FF6B35',        // Caravan Orange - main brand color
+    secondary: '#F7931E',      // Desert Sunset - vibrant accent
+    accent: '#004E89',         // Oasis Blue - depth and trust
+
+    // Semantic Colors
+    success: '#10B981',        // Journey Green
+    danger: '#EF4444',         // Alert Red
+    warning: '#F59E0B',        // Caution Amber
+    info: '#3B82F6',           // Info Blue
+
+    // Neutral Colors
+    dark: '#1F2937',           // Almost black for text
+    light: '#FFF8F3',          // Warm off-white background
+    white: '#FFFFFF',          // Pure white
+    black: '#000000',          // Pure black
+
+    // Extended Palette
+    sand: '#F4E4C1',           // Sandy tone
+    terracotta: '#E07A5F',     // Warm earth tone
+
+    // Gray Scale (with warmer tones)
     gray: {
-      100: '#F3F4F6',
-      200: '#E5E7EB',
-      300: '#D1D5DB',
-      400: '#9CA3AF',
-      500: '#6B7280',
-      600: '#4B5563',
-      700: '#374151',
-      800: '#1F2937',
-      900: '#111827',
+      100: '#F7F3EF',          // Warm light gray
+      200: '#E8DFD6',          // Light sand
+      300: '#D1C7BD',          // Medium sand
+      400: '#A89F94',          // Warm mid gray
+      500: '#6B6660',          // Dark warm gray
+      600: '#4B4842',          // Charcoal
+      700: '#38352F',          // Deep charcoal
+      800: '#252320',          // Almost black
+      900: '#1A1816',          // Rich black
     },
   },
   spacing: {

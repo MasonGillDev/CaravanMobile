@@ -1,6 +1,7 @@
 export interface User {
   user_id: string;
   auth0_sub: string;
+  username?: string;
   email?: string;
   dob?: string;
   country_code?: string;

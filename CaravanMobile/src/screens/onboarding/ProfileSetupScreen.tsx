@@ -18,6 +18,7 @@ import { countryCodes } from '../../utils/countries';
 
 export default function ProfileSetupScreen({ navigation }: any) {
   const { refreshUser } = useAuth();
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [dob, setDob] = useState(new Date(2000, 0, 1));
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -40,7 +41,23 @@ export default function ProfileSetupScreen({ navigation }: any) {
     return re.test(email);
   };
 
+  const validateUsername = (username: string) => {
+    // Must be 3-20 characters, alphanumeric with _ or - only
+    const re = /^[a-zA-Z0-9_-]{3,20}$/;
+    return re.test(username);
+  };
+
   const handleSubmit = async () => {
+    if (!username.trim()) {
+      Alert.alert('Invalid Username', 'Please enter a username');
+      return;
+    }
+
+    if (!validateUsername(username)) {
+      Alert.alert('Invalid Username', 'Username must be 3-20 characters, alphanumeric with _ or - only');
+      return;
+    }
+
     if (!validateEmail(email)) {
       Alert.alert('Invalid Email', 'Please enter a valid email address');
       return;
@@ -56,6 +73,7 @@ export default function ProfileSetupScreen({ navigation }: any) {
     try {
       const apiClient = ApiClient.getInstance();
       await apiClient.updateProfile({
+        username: username.trim(),
         email,
         dob: formatDate(dob),
         country_code: countryCode,
@@ -93,6 +111,22 @@ export default function ProfileSetupScreen({ navigation }: any) {
         </View>
 
         <View style={styles.form}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Username</Text>
+            <TextInput
+              style={styles.input}
+              value={username}
+              onChangeText={setUsername}
+              placeholder="your_username"
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={20}
+            />
+            <Text style={styles.helpText}>
+              3-20 characters, letters, numbers, _ and - only
+            </Text>
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Email Address</Text>
             <TextInput
@@ -242,5 +276,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
   },
 });

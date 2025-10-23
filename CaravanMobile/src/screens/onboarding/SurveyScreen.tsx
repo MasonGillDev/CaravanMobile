@@ -258,14 +258,14 @@ export default function SurveyScreen({ navigation }: any) {
       const locationService = LocationService.getInstance();
       await locationService.requestPermissions();
       // Start tracking if permission granted
-      locationService.startTracking().catch(err => 
+      locationService.startTracking().catch(err =>
         console.log('Location tracking not started:', err)
       );
-      
-      // Navigate to home after survey completion
+
+      // Navigate to main tabs after survey completion
       navigation.reset({
         index: 0,
-        routes: [{ name: 'Home' }],
+        routes: [{ name: 'MainTabs' }],
       });
     } catch (error) {
       console.error('Survey submission error:', error);

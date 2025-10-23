@@ -65,6 +65,7 @@ class ApiClient {
   }
 
   async updateProfile(data: {
+    username: string;
     email: string;
     dob: string;
     country_code: string;
@@ -129,6 +130,62 @@ class ApiClient {
   // Place endpoints
   async getPlaceRecommendations(limit: number = 10) {
     const response = await this.axiosInstance.get(`/api/place/recommendations?limit=${limit}`);
+    return response.data;
+  }
+
+  // Heatmap endpoints
+  async getHeatmapData() {
+    const response = await this.axiosInstance.get('/api/location/heatmap');
+    return response.data;
+  }
+
+  // Friend endpoints
+  async sendFriendRequest(username: string) {
+    const response = await this.axiosInstance.post('/api/friends/request', {
+      username: username,
+    });
+    return response.data;
+  }
+
+  async acceptFriendRequest(friendshipId: number) {
+    const response = await this.axiosInstance.post(`/api/friends/${friendshipId}/accept`);
+    return response.data;
+  }
+
+  async declineFriendRequest(friendshipId: number) {
+    const response = await this.axiosInstance.post(`/api/friends/${friendshipId}/decline`);
+    return response.data;
+  }
+
+  async getFriendsList() {
+    const response = await this.axiosInstance.get('/api/friends');
+    return response.data;
+  }
+
+  async getPendingRequests() {
+    const response = await this.axiosInstance.get('/api/friends/pending');
+    return response.data;
+  }
+
+  async getSentRequests() {
+    const response = await this.axiosInstance.get('/api/friends/sent');
+    return response.data;
+  }
+
+  async removeFriend(friendshipId: number) {
+    const response = await this.axiosInstance.delete(`/api/friends/${friendshipId}`);
+    return response.data;
+  }
+
+  // User search endpoints
+  async searchUsers(query: string) {
+    const response = await this.axiosInstance.get(`/api/users/search?q=${encodeURIComponent(query)}`);
+    return response.data;
+  }
+
+  // Visit endpoints
+  async getUserVisits() {
+    const response = await this.axiosInstance.get('/api/visits');
     return response.data;
   }
 

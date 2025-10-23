@@ -3,7 +3,7 @@ import { NavigationContainer, NavigationContainerRef } from '@react-navigation/n
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/auth/LoginScreen';
-import { HomeScreen } from '../screens/home/HomeScreen';
+import { MainTabNavigator } from './MainTabNavigator';
 import ProfileSetupScreen from '../screens/onboarding/ProfileSetupScreen';
 import SurveyScreen from '../screens/onboarding/SurveyScreen';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
@@ -20,7 +20,7 @@ export const AppNavigator: React.FC = () => {
   
   // Check if user needs profile setup
   const needsProfileSetup = isAuthenticated && user && (
-    !user.email || !user.dob || !user.country_code || !user.profile_completed
+    !user.username || !user.email || !user.dob || !user.country_code || !user.profile_completed
   );
   
   // Check if user needs survey (profile completed but survey not)
@@ -74,11 +74,11 @@ export const AppNavigator: React.FC = () => {
         ) : needsSurvey ? (
           <>
             <Stack.Screen name="Survey" component={SurveyScreen} />
-            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="MainTabs" component={MainTabNavigator} />
           </>
         ) : (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="MainTabs" component={MainTabNavigator} />
             <Stack.Screen name="Survey" component={SurveyScreen} />
           </>
         )}

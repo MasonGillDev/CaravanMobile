@@ -4,18 +4,21 @@ import {
   ActivityIndicator,
   Animated,
   Dimensions,
+  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   DEFAULT_MAP_CONFIG,
   MAPBOX_ACCESS_TOKEN,
   MAPBOX_STYLE_URLS,
 } from "../../config/mapbox";
 import { PlaceRecommendation } from "../../services/api/placeService";
+import ApiClient from "../../services/api/apiClient";
 import LocationService from "../../services/location/locationService";
 import { theme } from "../../styles/theme";
 
@@ -41,9 +44,15 @@ export const MapView: React.FC<MapViewProps> = ({
   );
   const [isMapReady, setIsMapReady] = useState(false);
   const [showPlaceDetails, setShowPlaceDetails] = useState(false);
+  const [heatmapData, setHeatmapData] = useState<any>(null);
+  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [similarityThreshold, setSimilarityThreshold] = useState(0); // 0 = show all, 1 = only very similar
   const cameraRef = useRef<MapboxGL.Camera>(null);
   const mapRef = useRef<MapboxGL.MapView>(null);
   const detailsCardOpacity = useRef(new Animated.Value(0)).current;
+  const sliderHeight = 120; // Height of the slider bar
+  const sliderStartThreshold = useRef(0); // Track threshold when drag starts
+  const apiClient = ApiClient.getInstance();
 
   const dismissPlaceDetails = () => {
     Animated.timing(detailsCardOpacity, {
@@ -66,6 +75,67 @@ export const MapView: React.FC<MapViewProps> = ({
       });
     }
   };
+
+  // Pan responder for draggable slider
+  const sliderPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        // Save the starting threshold when user touches slider
+        sliderStartThreshold.current = similarityThreshold;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        // Calculate new threshold based on vertical drag distance
+        // Negative dy = dragging up = increase threshold
+        // Positive dy = dragging down = decrease threshold
+        const offsetRatio = -gestureState.dy / sliderHeight;
+        const newThreshold = Math.max(0, Math.min(1, sliderStartThreshold.current + offsetRatio));
+        setSimilarityThreshold(newThreshold);
+      },
+      onPanResponderRelease: () => {
+        // User released the slider - threshold is already set
+      },
+    })
+  ).current;
+
+  const fetchHeatmapData = async () => {
+    try {
+      const data = await apiClient.getHeatmapData();
+      setHeatmapData(data);
+      console.log('Heatmap data updated:', data.features?.length || 0, 'users');
+    } catch (error: any) {
+      // Silently fail - user might not have embedding yet
+      if (error.response?.status !== 400) {
+        console.log('Failed to fetch heatmap data:', error.message);
+      }
+    }
+  };
+
+  // Filter heatmap data based on similarity threshold
+  const filteredHeatmapData = React.useMemo(() => {
+    if (!heatmapData || !heatmapData.features) {
+      return heatmapData;
+    }
+
+    // Filter features based on similarity threshold
+    const filteredFeatures = heatmapData.features.filter((feature: any) => {
+      const similarity = feature.properties?.similarity;
+      // If no similarity score, show it when threshold is 0
+      if (similarity === undefined || similarity === null) {
+        return similarityThreshold === 0;
+      }
+      // Filter based on threshold
+      return similarity >= similarityThreshold;
+    });
+
+    console.log(`Filtered heatmap: ${filteredFeatures.length}/${heatmapData.features.length} users (threshold: ${(similarityThreshold * 100).toFixed(1)}%)`);
+
+    return {
+      ...heatmapData,
+      features: filteredFeatures,
+    };
+  }, [heatmapData, similarityThreshold]);
 
   useEffect(() => {
     // Get initial location
@@ -131,6 +201,20 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [selectedPlace]);
 
+  // Fetch heatmap data periodically
+  useEffect(() => {
+    // Fetch immediately on mount
+    fetchHeatmapData();
+
+    // Set up polling every 30 seconds
+    const interval = setInterval(() => {
+      fetchHeatmapData();
+    }, 30000);
+
+    // Cleanup interval on unmount
+    return () => clearInterval(interval);
+  }, []);
+
   const handleUserLocationUpdate = (location: MapboxGL.Location) => {
     const coords: [number, number] = [
       location.coords.longitude,
@@ -182,6 +266,57 @@ export const MapView: React.FC<MapViewProps> = ({
           showsUserHeadingIndicator={true}
         />
 
+        {/* Heatmap Layer - shows other users with similarity-based intensity */}
+        {showHeatmap && filteredHeatmapData && filteredHeatmapData.features && filteredHeatmapData.features.length > 0 && (
+          <MapboxGL.ShapeSource
+            id="heatmapSource"
+            shape={filteredHeatmapData}
+          >
+            <MapboxGL.HeatmapLayer
+              id="heatmapLayer"
+              sourceID="heatmapSource"
+              style={{
+                heatmapRadius: [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  0, 6,
+                  9, 25,
+                  15, 50,
+                ],
+                heatmapWeight: [
+                  'interpolate',
+                  ['linear'],
+                  ['get', 'similarity'],
+                  0, 0.3,
+                  0.5, 0.6,
+                  1, 1,
+                ],
+                heatmapIntensity: [
+                  'interpolate',
+                  ['linear'],
+                  ['zoom'],
+                  0, 0.8,
+                  9, 1.2,
+                  15, 1.8,
+                ],
+                heatmapColor: [
+                  'interpolate',
+                  ['linear'],
+                  ['heatmap-density'],
+                  0, 'rgba(33,102,172,0)',
+                  0.2, 'rgb(103,169,207)',
+                  0.4, 'rgb(209,229,240)',
+                  0.6, 'rgb(253,219,199)',
+                  0.8, 'rgb(239,138,98)',
+                  1, 'rgb(178,24,43)',
+                ],
+                heatmapOpacity: 0.6,
+              }}
+            />
+          </MapboxGL.ShapeSource>
+        )}
+
         {/* Selected Place Marker - only shows when place details are visible */}
         {showPlaceDetails && selectedPlace && (
           <MapboxGL.MarkerView
@@ -190,7 +325,11 @@ export const MapView: React.FC<MapViewProps> = ({
           >
             <View style={styles.markerContainer}>
               <View style={styles.marker}>
-                <Text style={styles.markerEmoji}>📍</Text>
+                <MaterialCommunityIcons
+                  name="map-marker"
+                  size={32}
+                  color={theme.colors.primary}
+                />
               </View>
               <View style={styles.markerPulse} />
             </View>
@@ -200,8 +339,57 @@ export const MapView: React.FC<MapViewProps> = ({
 
       {/* Recenter button */}
       <TouchableOpacity style={styles.recenterButton} onPress={recenterOnUser}>
-        <Text style={styles.recenterIcon}>📍</Text>
+        <MaterialCommunityIcons
+          name="crosshairs-gps"
+          size={28}
+          color={theme.colors.primary}
+        />
       </TouchableOpacity>
+
+      {/* Heatmap Controls - Integrated Slider with Toggle */}
+      <View style={styles.heatmapControlsContainer}>
+        {/* Heatmap toggle button */}
+        <TouchableOpacity
+          style={[styles.heatmapToggleButton, !showHeatmap && styles.heatmapToggleButtonOff]}
+          onPress={() => setShowHeatmap(!showHeatmap)}
+        >
+          <Text style={[styles.heatmapToggleText, !showHeatmap && styles.heatmapToggleTextOff]}>
+            {showHeatmap ? 'HEAT' : 'OFF'}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Similarity Filter Slider */}
+        {showHeatmap && (
+          <View style={styles.similarityFilterContainer}>
+            {/* Vertical bar - Draggable (wider touch area) */}
+            <View
+              style={styles.verticalSliderBar}
+              {...sliderPanResponder.panHandlers}
+            >
+              <View style={styles.verticalSliderBarInner}>
+                <View
+                  style={[
+                    styles.verticalSliderFill,
+                    {
+                      height: `${similarityThreshold * 100}%`,
+                      backgroundColor: `rgb(${Math.round(128 + 127 * similarityThreshold)}, ${Math.round(100 - 20 * similarityThreshold)}, ${Math.round(172 - 129 * similarityThreshold)})`,
+                    },
+                  ]}
+                />
+              </View>
+              <View
+                style={[
+                  styles.verticalSliderThumb,
+                  {
+                    top: `${(1 - similarityThreshold) * 100}%`,
+                    borderColor: `rgb(${Math.round(128 + 127 * similarityThreshold)}, ${Math.round(100 - 20 * similarityThreshold)}, ${Math.round(172 - 129 * similarityThreshold)})`,
+                  },
+                ]}
+              />
+            </View>
+          </View>
+        )}
+      </View>
 
       {/* Place Details Card with Dismissible Overlay */}
       {showPlaceDetails && selectedPlace && (
@@ -244,9 +432,10 @@ export const MapView: React.FC<MapViewProps> = ({
                 {selectedPlace.rating && (
                   <View style={styles.infoItem}>
                     <Text style={styles.infoLabel}>Rating</Text>
-                    <Text style={styles.infoValue}>
-                      ⭐ {selectedPlace.rating}
-                    </Text>
+                    <View style={styles.infoValueRow}>
+                      <MaterialCommunityIcons name="star" size={16} color={theme.colors.secondary} />
+                      <Text style={styles.infoValue}>{selectedPlace.rating}</Text>
+                    </View>
                   </View>
                 )}
 
@@ -318,8 +507,39 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
   },
-  recenterIcon: {
-    fontSize: 24,
+  heatmapControlsContainer: {
+    position: "absolute",
+    left: 16,
+    top: "50%",
+    marginTop: -80,
+    alignItems: "center",
+  },
+  heatmapToggleButton: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+  },
+  heatmapToggleButtonOff: {
+    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    borderColor: theme.colors.gray[400],
+  },
+  heatmapToggleText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: theme.colors.primary,
+    letterSpacing: 0.5,
+  },
+  heatmapToggleTextOff: {
+    color: theme.colors.gray[500],
   },
   markerContainer: {
     alignItems: "center",
@@ -339,9 +559,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 5,
-  },
-  markerEmoji: {
-    fontSize: 28,
   },
   markerPulse: {
     position: "absolute",
@@ -414,10 +631,16 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.xs,
     textTransform: "uppercase",
   },
+  infoValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   infoValue: {
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
     color: theme.colors.dark,
+    marginLeft: 2,
   },
   hoursSection: {
     marginBottom: theme.spacing.md,
@@ -444,6 +667,49 @@ const styles = StyleSheet.create({
     color: theme.colors.white,
     fontSize: theme.fontSize.md,
     fontWeight: theme.fontWeight.semibold,
+  },
+  similarityFilterContainer: {
+    alignItems: "center",
+  },
+  verticalSliderBar: {
+    width: 28,
+    height: 120,
+    backgroundColor: "transparent",
+    borderRadius: 4,
+    position: "relative",
+    overflow: "visible",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  verticalSliderBarInner: {
+    width: 8,
+    height: "100%",
+    backgroundColor: theme.colors.gray[200],
+    borderRadius: 4,
+    position: "relative",
+  },
+  verticalSliderFill: {
+    position: "absolute",
+    bottom: 0,
+    width: "100%",
+    borderRadius: 4,
+    // backgroundColor applied dynamically based on threshold
+  },
+  verticalSliderThumb: {
+    position: "absolute",
+    left: "50%",
+    marginLeft: -12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: theme.colors.white,
+    borderWidth: 3,
+    borderColor: theme.colors.primary, // Will be overridden dynamically
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
   },
 });
 
