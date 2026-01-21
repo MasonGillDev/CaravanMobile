@@ -133,6 +133,21 @@ class ApiClient {
     return response.data;
   }
 
+  // Concert endpoints
+  async getConcertRecommendations(limit: number = 10) {
+    const response = await this.axiosInstance.get(`/api/concert/recommendations?limit=${limit}`);
+    return response.data;
+  }
+
+  async fetchConcerts(latitude: number, longitude: number, radiusMiles: number = 25) {
+    const response = await this.axiosInstance.post('/api/concert/fetch', {
+      latitude,
+      longitude,
+      radius_miles: radiusMiles,
+    });
+    return response.data;
+  }
+
   // Heatmap endpoints
   async getHeatmapData() {
     const response = await this.axiosInstance.get('/api/location/heatmap');
@@ -183,9 +198,106 @@ class ApiClient {
     return response.data;
   }
 
+  // Post endpoints (Social Feed)
+  async createPost(data: {
+    content: string;
+    latitude: number;
+    longitude: number;
+  }) {
+    const response = await this.axiosInstance.post('/api/posts', data);
+    return response.data;
+  }
+
+  async getFeed(params: {
+    latitude: number;
+    longitude: number;
+    radius?: number;
+    limit?: number;
+    offset?: number;
+  }) {
+    const queryParams = new URLSearchParams({
+      latitude: params.latitude.toString(),
+      longitude: params.longitude.toString(),
+      ...(params.radius && { radius: params.radius.toString() }),
+      ...(params.limit && { limit: params.limit.toString() }),
+      ...(params.offset && { offset: params.offset.toString() }),
+    });
+    const response = await this.axiosInstance.get(`/api/posts/feed?${queryParams.toString()}`);
+    return response.data;
+  }
+
+  async getPost(postId: string) {
+    const response = await this.axiosInstance.get(`/api/posts/${postId}`);
+    return response.data;
+  }
+
+  async deletePost(postId: string) {
+    const response = await this.axiosInstance.delete(`/api/posts/${postId}`);
+    return response.data;
+  }
+
+  async voteOnPost(postId: string, voteType: number) {
+    const response = await this.axiosInstance.post(`/api/posts/${postId}/vote`, {
+      vote_type: voteType,
+    });
+    return response.data;
+  }
+
+  async createReply(postId: string, content: string) {
+    const response = await this.axiosInstance.post(`/api/posts/${postId}/replies`, {
+      content,
+    });
+    return response.data;
+  }
+
+  async deleteReply(replyId: string) {
+    const response = await this.axiosInstance.delete(`/api/posts/replies/${replyId}`);
+    return response.data;
+  }
+
   // Visit endpoints
   async getUserVisits() {
     const response = await this.axiosInstance.get('/api/visits');
+    return response.data;
+  }
+
+  // Rating endpoints
+  async submitRating(data: {
+    session_id: string;
+    place_id: string;
+    rating: number;
+  }) {
+    const response = await this.axiosInstance.post('/api/rating', data);
+    return response.data;
+  }
+
+  // Notification endpoints
+  async getNotifications(limit: number = 50) {
+    const response = await this.axiosInstance.get(`/api/notifications?limit=${limit}`);
+    return response.data;
+  }
+
+  async getUnreadCount() {
+    const response = await this.axiosInstance.get('/api/notifications/unread/count');
+    return response.data;
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    const response = await this.axiosInstance.post('/api/notifications/read', {
+      notification_id: notificationId,
+    });
+    return response.data;
+  }
+
+  async markAllNotificationsAsRead() {
+    const response = await this.axiosInstance.post('/api/notifications/read/all');
+    return response.data;
+  }
+
+  async deleteNotification(notificationId: string) {
+    const response = await this.axiosInstance.post('/api/notifications/delete', {
+      notification_id: notificationId,
+    });
     return response.data;
   }
 

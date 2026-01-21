@@ -10,12 +10,13 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { theme } from '../../styles/theme';
 import { useAuth } from '../../context/AuthContext';
 import ApiClient from '../../services/api/apiClient';
 import { Visit } from '../../types/visit';
+import { VisitCard } from '../../components/VisitCard';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -63,44 +64,23 @@ export const ProfileScreen: React.FC = () => {
     navigation.navigate('Survey' as never);
   };
 
-  const renderVisitItem = ({ item }: { item: Visit }) => {
-    const arrivalDate = new Date(item.arrival_time);
-    const dwellTime = item.dwell_minutes ? `${item.dwell_minutes} min` : 'N/A';
+  const handleRatingSubmitted = (sessionId: string, rating: number) => {
+    // Update local state to reflect new rating
+    setVisits(prevVisits =>
+      prevVisits.map(visit =>
+        visit.session_id === sessionId
+          ? { ...visit, user_rating: rating }
+          : visit
+      )
+    );
+  };
 
+  const renderVisitItem = ({ item }: { item: Visit }) => {
     return (
-      <View style={styles.visitItem}>
-        <View style={styles.visitHeader}>
-          <MaterialCommunityIcons
-            name="map-marker"
-            size={20}
-            color={theme.colors.primary}
-          />
-          <Text style={styles.visitPlaceName} numberOfLines={1}>
-            {item.place_name}
-          </Text>
-        </View>
-        <Text style={styles.visitAddress} numberOfLines={1}>
-          {item.place_address}
-        </Text>
-        <View style={styles.visitDetails}>
-          <View style={styles.visitDetailItem}>
-            <Ionicons name="calendar-outline" size={14} color={theme.colors.gray[500]} />
-            <Text style={styles.visitDetailText}>
-              {arrivalDate.toLocaleDateString()}
-            </Text>
-          </View>
-          <View style={styles.visitDetailItem}>
-            <Ionicons name="time-outline" size={14} color={theme.colors.gray[500]} />
-            <Text style={styles.visitDetailText}>{dwellTime}</Text>
-          </View>
-          {item.place_rating && (
-            <View style={styles.visitDetailItem}>
-              <Ionicons name="star" size={14} color={theme.colors.secondary} />
-              <Text style={styles.visitDetailText}>{item.place_rating}</Text>
-            </View>
-          )}
-        </View>
-      </View>
+      <VisitCard
+        visit={item}
+        onRatingSubmitted={handleRatingSubmitted}
+      />
     );
   };
 
@@ -346,42 +326,6 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     fontSize: theme.fontSize.sm,
     color: theme.colors.gray[500],
-  },
-  visitItem: {
-    paddingVertical: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.gray[200],
-  },
-  visitHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: theme.spacing.sm,
-    marginBottom: theme.spacing.xs,
-  },
-  visitPlaceName: {
-    flex: 1,
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.dark,
-  },
-  visitAddress: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.gray[600],
-    marginBottom: theme.spacing.sm,
-  },
-  visitDetails: {
-    flexDirection: 'row',
-    gap: theme.spacing.md,
-    flexWrap: 'wrap',
-  },
-  visitDetailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  visitDetailText: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.gray[600],
   },
   noVisitsText: {
     fontSize: theme.fontSize.sm,

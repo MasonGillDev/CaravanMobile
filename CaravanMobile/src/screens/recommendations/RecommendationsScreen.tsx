@@ -15,13 +15,31 @@ import { theme } from '../../styles/theme';
 import ApiClient from '../../services/api/apiClient';
 import { PlaceRecommendation } from '../../services/api/placeService';
 import { useAuth } from '../../context/AuthContext';
+import LocationService from '../../services/location/locationService';
+
+interface Concert {
+  concert_id: string;
+  name: string;
+  url: string;
+  event_date: string;
+  event_time?: string;
+  venue_name?: string;
+  venue_city?: string;
+  venue_state?: string;
+  genre?: string;
+  price_min?: number;
+  price_max?: number;
+  similarity?: number;
+}
 
 export const RecommendationsScreen: React.FC = () => {
   const { user } = useAuth();
   const [recommendations, setRecommendations] = useState<PlaceRecommendation[]>([]);
+  const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const apiClient = ApiClient.getInstance();
+  const locationService = LocationService.getInstance();
 
   const fetchRecommendations = async (showLoader = true) => {
     if (showLoader) setLoading(true);
@@ -47,15 +65,42 @@ export const RecommendationsScreen: React.FC = () => {
     }
   };
 
+  const fetchConcerts = async () => {
+    try {
+      const location = await locationService.getCurrentLocation();
+      if (!location) {
+        console.log('No location available for fetching concerts');
+        return;
+      }
+
+      // First, trigger fetching concerts from Ticketmaster to our backend
+      try {
+        await apiClient.fetchConcerts(location.latitude, location.longitude, 25);
+      } catch (error) {
+        console.log('Note: Failed to fetch new concerts, will use existing:', error);
+        // Continue to get recommendations even if fetch fails
+      }
+
+      // Then get personalized recommendations
+      const response = await apiClient.getConcertRecommendations(10);
+      if (response.success && response.recommendations) {
+        setConcerts(response.recommendations);
+      }
+    } catch (error) {
+      console.log('Error getting concert recommendations:', error);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchRecommendations(false);
+    await Promise.all([fetchRecommendations(false), fetchConcerts()]);
     setRefreshing(false);
   };
 
   useEffect(() => {
     if (user) {
       fetchRecommendations();
+      fetchConcerts();
     }
   }, [user]);
 
@@ -112,6 +157,25 @@ export const RecommendationsScreen: React.FC = () => {
     );
   }
 
+  const renderListHeader = () => {
+    if (concerts.length === 0) return null;
+
+    return (
+      <View style={styles.concertsSection}>
+        <Text style={styles.sectionTitle}>Concerts For You</Text>
+        {concerts.slice(0, 5).map((concert) => (
+          <View key={concert.concert_id} style={styles.concertItem}>
+            <Text style={styles.concertName}>{concert.name}</Text>
+            {concert.venue_name && (
+              <Text style={styles.concertVenue}>{concert.venue_name}</Text>
+            )}
+            <Text style={styles.concertDate}>{concert.event_date}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -125,6 +189,7 @@ export const RecommendationsScreen: React.FC = () => {
           renderItem={renderPlaceCard}
           keyExtractor={(item) => item.place_id}
           contentContainerStyle={styles.listContent}
+          ListHeaderComponent={renderListHeader}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -250,5 +315,35 @@ const styles = StyleSheet.create({
     color: theme.colors.gray[500],
     textAlign: 'center',
     lineHeight: 24,
+  },
+  concertsSection: {
+    marginBottom: theme.spacing.lg,
+  },
+  sectionTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: theme.fontWeight.bold,
+    color: theme.colors.dark,
+    marginBottom: theme.spacing.md,
+  },
+  concertItem: {
+    backgroundColor: theme.colors.white,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    marginBottom: theme.spacing.sm,
+  },
+  concertName: {
+    fontSize: theme.fontSize.md,
+    fontWeight: theme.fontWeight.semibold,
+    color: theme.colors.dark,
+    marginBottom: 4,
+  },
+  concertVenue: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.gray[600],
+    marginBottom: 4,
+  },
+  concertDate: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.gray[500],
   },
 });

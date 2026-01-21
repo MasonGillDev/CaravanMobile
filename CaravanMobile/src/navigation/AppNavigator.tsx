@@ -6,6 +6,9 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 import { MainTabNavigator } from './MainTabNavigator';
 import ProfileSetupScreen from '../screens/onboarding/ProfileSetupScreen';
 import SurveyScreen from '../screens/onboarding/SurveyScreen';
+import { NotificationsScreen } from '../screens/notifications/NotificationsScreen';
+import { CreatePostScreen } from '../screens/feed/CreatePostScreen';
+import { PostDetailScreen } from '../screens/feed/PostDetailScreen';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { theme } from '../styles/theme';
 import NotificationService from '../services/notification/notificationService';
@@ -80,6 +83,24 @@ export const AppNavigator: React.FC = () => {
           <>
             <Stack.Screen name="MainTabs" component={MainTabNavigator} />
             <Stack.Screen name="Survey" component={SurveyScreen} />
+            <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen
+              name="CreatePost"
+              component={CreatePostScreen}
+              options={{
+                presentation: 'modal',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="PostDetail"
+              component={PostDetailScreen}
+              options={{
+                headerShown: true,
+                headerTitle: 'Post',
+                headerBackTitle: 'Back',
+              }}
+            />
           </>
         )}
       </Stack.Navigator>

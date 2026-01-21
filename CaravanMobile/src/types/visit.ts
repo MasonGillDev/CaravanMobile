@@ -11,6 +11,7 @@ export interface Visit {
   place_state: string;
   place_rating?: number;
   place_price?: string;
+  user_rating?: number; // User's rating for this visit (1-5)
 }
 
 export interface VisitsResponse {

@@ -5,6 +5,7 @@ import { HomeScreen } from '../screens/home/HomeScreen';
 import { RecommendationsScreen } from '../screens/recommendations/RecommendationsScreen';
 import { FriendsScreen } from '../screens/friends/FriendsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
+import { FeedScreen } from '../screens/feed/FeedScreen';
 import { theme } from '../styles/theme';
 
 const Tab = createBottomTabNavigator();
@@ -62,6 +63,20 @@ export const MainTabNavigator: React.FC = () => {
           tabBarIcon: ({ color, size, focused }) => (
             <MaterialCommunityIcons
               name={focused ? "compass" : "compass-outline"}
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Feed"
+        component={FeedScreen}
+        options={{
+          tabBarLabel: 'Feed',
+          tabBarIcon: ({ color, size, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? "message-text" : "message-text-outline"}
               size={size}
               color={color}
             />

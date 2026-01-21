@@ -24,6 +24,13 @@ export const theme = {
     sand: '#F4E4C1',           // Sandy tone
     terracotta: '#E07A5F',     // Warm earth tone
 
+    // UI Colors
+    background: '#FFFFFF',     // Background
+    surface: '#F9FAFB',        // Surface
+    border: '#E5E7EB',         // Border
+    text: '#1F2937',           // Text
+    textSecondary: '#6B7280',  // Secondary text
+
     // Gray Scale (with warmer tones)
     gray: {
       100: '#F7F3EF',          // Warm light gray

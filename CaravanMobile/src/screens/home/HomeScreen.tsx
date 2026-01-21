@@ -1,12 +1,18 @@
-import React, { useEffect } from "react";
-import { SafeAreaView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { SafeAreaView, StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import MapView from "../../components/map/MapView";
 import { useAuth } from "../../context/AuthContext";
 import LocationService from "../../services/location/locationService";
+import ApiClient from "../../services/api/apiClient";
 import { theme } from "../../styles/theme";
 
 export const HomeScreen: React.FC = () => {
   const { user } = useAuth();
+  const navigation = useNavigation();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const apiClient = ApiClient.getInstance();
 
   useEffect(() => {
     // Only set up location if user is authenticated
@@ -30,13 +36,42 @@ export const HomeScreen: React.FC = () => {
     };
 
     setupLocation();
+    fetchUnreadCount();
   }, [user]);
+
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await apiClient.getUnreadCount();
+      if (response.success) {
+        setUnreadCount(response.count || 0);
+      }
+    } catch (error: any) {
+      console.log("Failed to fetch unread count:", error);
+    }
+  };
+
+  const handleNotificationPress = () => {
+    navigation.navigate("Notifications" as never);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Logo/Header Space */}
       <View style={styles.headerSpace}>
         <Text style={styles.logoText}>CARAVAN</Text>
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={handleNotificationPress}
+        >
+          <Ionicons name="notifications" size={24} color={theme.colors.primary} />
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Map Container with padding */}
@@ -57,14 +92,38 @@ const styles = StyleSheet.create({
   headerSpace: {
     paddingTop: theme.spacing.lg,
     paddingBottom: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
   },
   logoText: {
     fontSize: theme.fontSize.xl,
     fontWeight: theme.fontWeight.bold,
     color: theme.colors.primary,
     letterSpacing: 3,
+  },
+  notificationButton: {
+    position: "absolute",
+    right: theme.spacing.lg,
+    padding: theme.spacing.sm,
+  },
+  badge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: theme.colors.danger,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: theme.colors.white,
+    fontSize: 10,
+    fontWeight: theme.fontWeight.bold,
   },
   mapWrapper: {
     flex: 1,

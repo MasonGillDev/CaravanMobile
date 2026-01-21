@@ -17,7 +17,10 @@
       "bundleIdentifier": "com.masongill.CaravanMobile",
       "buildNumber": "3",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Caravan needs your location to show nearby trending venues and help you discover great spots.",
+        "NSLocationWhenInUseUsageDescription": "Caravan needs your location to show nearby trending venues and help you discover great spots.",
+        "UIBackgroundModes": ["location"]
       },
       "appleTeamId": "8VWXL68TT2"
     },
@@ -36,6 +39,16 @@
     "plugins": [
       "expo-secure-store",
       "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Caravan needs your location to show nearby trending venues and help you discover great spots.",
+          "locationAlwaysPermission": "Caravan needs your location to show nearby trending venues and help you discover great spots.",
+          "locationWhenInUsePermission": "Caravan needs your location to show nearby trending venues and help you discover great spots.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ],
       [
         "expo-notifications",
         {
