@@ -6,7 +6,7 @@ export const theme = {
     // Brand Colors
     primary: '#FF6B35',        // Caravan Orange - main brand color
     secondary: '#F7931E',      // Desert Sunset - vibrant accent
-    accent: '#004E89',         // Oasis Blue - depth and trust
+    accent: 'rgb(215, 233, 241)',         // Oasis Blue - depth and trust
 
     // Semantic Colors
     success: '#10B981',        // Journey Green

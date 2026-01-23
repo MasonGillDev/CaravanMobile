@@ -1,21 +1,23 @@
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  FlatList,
   RefreshControl,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { theme } from '../../styles/theme';
+import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { useAuth } from '../../context/AuthContext';
 import ApiClient from '../../services/api/apiClient';
 import { PlaceRecommendation } from '../../services/api/placeService';
-import { useAuth } from '../../context/AuthContext';
 import LocationService from '../../services/location/locationService';
+import { theme } from '../../styles/theme';
 
 interface Concert {
   concert_id: string;
@@ -34,6 +36,7 @@ interface Concert {
 
 export const RecommendationsScreen: React.FC = () => {
   const { user } = useAuth();
+  const navigation = useNavigation();
   const [recommendations, setRecommendations] = useState<PlaceRecommendation[]>([]);
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(false);
@@ -104,8 +107,13 @@ export const RecommendationsScreen: React.FC = () => {
     }
   }, [user]);
 
+  const handlePlacePress = (place: PlaceRecommendation) => {
+    // Navigate to Home tab (map) with the selected place
+    navigation.navigate('Home' as never, { selectedPlace: place } as never);
+  };
+
   const renderPlaceCard = ({ item }: { item: PlaceRecommendation }) => (
-    <TouchableOpacity style={styles.placeCard}>
+    <TouchableOpacity style={styles.placeCard} onPress={() => handlePlacePress(item)}>
       <View style={styles.placeHeader}>
         <Text style={styles.placeName} numberOfLines={1}>
           {item.name}
@@ -147,9 +155,7 @@ export const RecommendationsScreen: React.FC = () => {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Recommendations</Text>
-        </View>
+        <ScreenHeader title="Discover" subtitle="Personalized places for you" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
         </View>
@@ -178,10 +184,7 @@ export const RecommendationsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Recommendations</Text>
-        <Text style={styles.subtitle}>Personalized places for you</Text>
-      </View>
+      <ScreenHeader title="Discover" />
 
       {recommendations.length > 0 ? (
         <FlatList
@@ -213,27 +216,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.light,
-  },
-  header: {
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.white,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.dark,
-    marginBottom: theme.spacing.xs,
-  },
-  subtitle: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.gray[600],
   },
   loadingContainer: {
     flex: 1,
@@ -272,7 +254,7 @@ const styles = StyleSheet.create({
   matchScore: {
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.bold,
-    color: theme.colors.accent,
+    color: theme.colors.secondary,
     backgroundColor: theme.colors.secondary + '20',
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: 4,

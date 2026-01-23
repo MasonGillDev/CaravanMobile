@@ -1,20 +1,19 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  ActivityIndicator,
-  Animated,
-  PanResponder,
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { theme } from '../../styles/theme';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { NotificationCard } from '../../components/NotificationCard';
 import ApiClient from '../../services/api/apiClient';
+import { theme } from '../../styles/theme';
 import { Notification } from '../../types/notification';
 
 export const NotificationsScreen: React.FC = () => {
@@ -104,122 +103,12 @@ export const NotificationsScreen: React.FC = () => {
     }
   };
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'visit_started':
-        return 'location';
-      case 'visit_ended':
-        return 'checkmark-circle';
-      case 'friend_request':
-        return 'person-add';
-      case 'rating_reminder':
-        return 'star';
-      case 'mention':
-        return 'at';
-      default:
-        return 'notifications';
-    }
-  };
-
-  const getTimeAgo = (timestamp: string) => {
-    const now = new Date();
-    const created = new Date(timestamp);
-    const diffMs = now.getTime() - created.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
-    return created.toLocaleDateString();
-  };
-
-  const SwipeableNotification = ({ item }: { item: Notification }) => {
-    const translateX = useRef(new Animated.Value(0)).current;
-    const [swiping, setSwiping] = useState(false);
-
-    const panResponder = useRef(
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gestureState) => {
-          return Math.abs(gestureState.dx) > 10;
-        },
-        onPanResponderGrant: () => {
-          setSwiping(true);
-        },
-        onPanResponderMove: (_, gestureState) => {
-          if (gestureState.dx < 0) {
-            translateX.setValue(Math.max(gestureState.dx, -100));
-          }
-        },
-        onPanResponderRelease: (_, gestureState) => {
-          setSwiping(false);
-          if (gestureState.dx < -70) {
-            // Swipe threshold reached - delete
-            Animated.timing(translateX, {
-              toValue: -400,
-              duration: 200,
-              useNativeDriver: true,
-            }).start(() => {
-              handleDeleteNotification(item.notification_id);
-            });
-          } else {
-            // Snap back
-            Animated.spring(translateX, {
-              toValue: 0,
-              useNativeDriver: true,
-            }).start();
-          }
-        },
-      })
-    ).current;
-
-    return (
-      <View style={styles.swipeContainer}>
-        <View style={styles.deleteAction}>
-          <Ionicons name="trash" size={24} color={theme.colors.white} />
-        </View>
-        <Animated.View
-          style={[
-            styles.swipeableContent,
-            { transform: [{ translateX }] },
-          ]}
-          {...panResponder.panHandlers}
-        >
-          <TouchableOpacity
-            style={[styles.notificationItem, !item.read && styles.unread]}
-            onPress={() => !swiping && handleNotificationPress(item)}
-            activeOpacity={0.7}
-            disabled={swiping}
-          >
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name={getNotificationIcon(item.type) as any}
-                size={24}
-                color={item.read ? theme.colors.gray[400] : theme.colors.primary}
-              />
-            </View>
-
-            <View style={styles.contentContainer}>
-              <Text style={[styles.title, !item.read && styles.unreadText]}>
-                {item.title}
-              </Text>
-              <Text style={styles.message} numberOfLines={2}>
-                {item.message}
-              </Text>
-              <Text style={styles.timestamp}>{getTimeAgo(item.created_at)}</Text>
-            </View>
-
-            {!item.read && <View style={styles.unreadDot} />}
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-    );
-  };
-
   const renderNotification = ({ item }: { item: Notification }) => (
-    <SwipeableNotification item={item} />
+    <NotificationCard
+      notification={item}
+      onPress={handleNotificationPress}
+      onDelete={handleDeleteNotification}
+    />
   );
 
   if (loading) {
@@ -254,7 +143,7 @@ export const NotificationsScreen: React.FC = () => {
           <Ionicons
             name="notifications-off-outline"
             size={64}
-            color={theme.colors.gray[300]}
+            color={theme.colors.accent}
           />
           <Text style={styles.emptyText}>No notifications yet</Text>
         </View>
@@ -329,72 +218,5 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: theme.spacing.xl,
-  },
-  notificationItem: {
-    flexDirection: 'row',
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.gray[100],
-  },
-  unread: {
-    backgroundColor: theme.colors.primary + '08',
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.colors.gray[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: theme.spacing.md,
-  },
-  contentContainer: {
-    flex: 1,
-  },
-  title: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.gray[600],
-    marginBottom: 4,
-  },
-  unreadText: {
-    color: theme.colors.dark,
-    fontWeight: theme.fontWeight.bold,
-  },
-  message: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.gray[600],
-    marginBottom: 4,
-    lineHeight: 18,
-  },
-  timestamp: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.gray[400],
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.primary,
-    marginLeft: theme.spacing.sm,
-    alignSelf: 'center',
-  },
-  swipeContainer: {
-    position: 'relative',
-    overflow: 'hidden',
-  },
-  swipeableContent: {
-    backgroundColor: theme.colors.white,
-  },
-  deleteAction: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    bottom: 0,
-    width: 100,
-    backgroundColor: theme.colors.danger,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });

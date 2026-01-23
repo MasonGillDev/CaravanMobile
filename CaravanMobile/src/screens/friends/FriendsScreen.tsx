@@ -16,6 +16,7 @@ import friendService from '../../services/api/friendService';
 import { Friend } from '../../types/friend';
 import { User } from '../../types/user';
 import { useAuth } from '../../context/AuthContext';
+import { ScreenHeader } from '../../components/common/ScreenHeader';
 
 /**
  * FriendsScreen - Main screen for managing friends and friend requests
@@ -185,11 +186,13 @@ export const FriendsScreen: React.FC = () => {
    * Get the display name for a friend
    * Shows the other person in the friendship (not the current user)
    */
-  const getFriendDisplayId = (friend: Friend): string => {
-    if (friend.requester_id === user?.user_id) {
-      return friend.addressee_id;
-    }
-    return friend.requester_id;
+  const getFriendDisplayName = (friend: Friend): string => {
+    // Determine which user is the friend (not the current user)
+    const isRequester = friend.requester_id === user?.user_id;
+    const friendUser = isRequester ? friend.addressee : friend.requester;
+
+    // Return username if available, fallback to user_id
+    return friendUser?.username || (isRequester ? friend.addressee_id : friend.requester_id);
   };
 
   /**
@@ -232,7 +235,7 @@ export const FriendsScreen: React.FC = () => {
   const renderFriendItem = ({ item }: { item: Friend }) => (
     <View style={styles.friendItem}>
       <View style={styles.friendInfo}>
-        <Text style={styles.friendId}>{getFriendDisplayId(item)}</Text>
+        <Text style={styles.friendId}>{getFriendDisplayName(item)}</Text>
         <Text style={styles.friendSince}>
           Friends since {new Date(item.created_at).toLocaleDateString()}
         </Text>
@@ -252,7 +255,9 @@ export const FriendsScreen: React.FC = () => {
   const renderPendingRequestItem = ({ item }: { item: Friend }) => (
     <View style={styles.requestItem}>
       <View style={styles.friendInfo}>
-        <Text style={styles.friendId}>{item.requester_id}</Text>
+        <Text style={styles.friendId}>
+          {item.requester?.username || item.requester_id}
+        </Text>
         <Text style={styles.requestDate}>
           Sent {new Date(item.created_at).toLocaleDateString()}
         </Text>
@@ -280,7 +285,9 @@ export const FriendsScreen: React.FC = () => {
   const renderSentRequestItem = ({ item }: { item: Friend }) => (
     <View style={styles.friendItem}>
       <View style={styles.friendInfo}>
-        <Text style={styles.friendId}>{item.addressee_id}</Text>
+        <Text style={styles.friendId}>
+          {item.addressee?.username || item.addressee_id}
+        </Text>
         <Text style={styles.requestDate}>
           Sent {new Date(item.created_at).toLocaleDateString()}
         </Text>
@@ -338,10 +345,7 @@ export const FriendsScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Friends</Text>
-      </View>
+      <ScreenHeader title="Friends" />
 
       {/* Search Section */}
       <View style={styles.searchSection}>
@@ -442,22 +446,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.light,
-  },
-  header: {
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.white,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.dark,
   },
   searchSection: {
     padding: theme.spacing.lg,

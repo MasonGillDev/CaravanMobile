@@ -1,17 +1,20 @@
-import React, { useEffect, useState } from "react";
-import { SafeAreaView, StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import React, { useEffect, useState } from "react";
+import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import MapView from "../../components/map/MapView";
 import { useAuth } from "../../context/AuthContext";
-import LocationService from "../../services/location/locationService";
 import ApiClient from "../../services/api/apiClient";
+import { PlaceRecommendation } from "../../services/api/placeService";
+import LocationService from "../../services/location/locationService";
 import { theme } from "../../styles/theme";
 
 export const HomeScreen: React.FC = () => {
   const { user } = useAuth();
   const navigation = useNavigation();
+  const route = useRoute();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedPlace, setSelectedPlace] = useState<PlaceRecommendation | null>(null);
   const apiClient = ApiClient.getInstance();
 
   useEffect(() => {
@@ -39,6 +42,16 @@ export const HomeScreen: React.FC = () => {
     fetchUnreadCount();
   }, [user]);
 
+  // Handle navigation params (selected place from Discover screen)
+  useEffect(() => {
+    const params = route.params as any;
+    if (params?.selectedPlace) {
+      setSelectedPlace(params.selectedPlace);
+      // Clear the param after using it
+      navigation.setParams({ selectedPlace: undefined } as never);
+    }
+  }, [route.params]);
+
   const fetchUnreadCount = async () => {
     try {
       const response = await apiClient.getUnreadCount();
@@ -52,6 +65,10 @@ export const HomeScreen: React.FC = () => {
 
   const handleNotificationPress = () => {
     navigation.navigate("Notifications" as never);
+  };
+
+  const handleClearSelectedPlace = () => {
+    setSelectedPlace(null);
   };
 
   return (
@@ -77,7 +94,10 @@ export const HomeScreen: React.FC = () => {
       {/* Map Container with padding */}
       <View style={styles.mapWrapper}>
         <View style={styles.mapContainer}>
-          <MapView selectedPlace={null} />
+          <MapView
+            selectedPlace={selectedPlace}
+            onClearSelectedPlace={handleClearSelectedPlace}
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -98,10 +118,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logoText: {
-    fontSize: theme.fontSize.xl,
-    fontWeight: theme.fontWeight.bold,
+    fontSize: 28,
+    fontWeight: '900' as any,
     color: theme.colors.primary,
-    letterSpacing: 3,
+    letterSpacing: 4,
+    fontFamily: 'System',
+    textTransform: 'uppercase' as any,
   },
   notificationButton: {
     position: "absolute",
@@ -112,7 +134,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 4,
     right: 4,
-    backgroundColor: theme.colors.danger,
+    backgroundColor: theme.colors.accent,
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -127,8 +149,12 @@ const styles = StyleSheet.create({
   },
   mapWrapper: {
     flex: 1,
+    
+    paddingTop: theme.spacing.lg,
     paddingHorizontal: theme.spacing.lg,
     paddingBottom: 110, // Extra space for floating tab bar
+    
+
   },
   mapContainer: {
     flex: 1,
@@ -139,5 +165,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 8,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
   },
 });

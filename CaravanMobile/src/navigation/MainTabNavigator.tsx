@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from '../screens/home/HomeScreen';
@@ -6,13 +7,16 @@ import { RecommendationsScreen } from '../screens/recommendations/Recommendation
 import { FriendsScreen } from '../screens/friends/FriendsScreen';
 import { ProfileScreen } from '../screens/profile/ProfileScreen';
 import { FeedScreen } from '../screens/feed/FeedScreen';
+import { WagonAnimation } from '../components/animations/WagonAnimation';
 import { theme } from '../styles/theme';
 
 const Tab = createBottomTabNavigator();
 
 export const MainTabNavigator: React.FC = () => {
   return (
-    <Tab.Navigator
+    <View style={{ flex: 1 }}>
+      <WagonAnimation />
+      <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: theme.colors.primary,
@@ -112,5 +116,6 @@ export const MainTabNavigator: React.FC = () => {
         }}
       />
     </Tab.Navigator>
+    </View>
   );
 };

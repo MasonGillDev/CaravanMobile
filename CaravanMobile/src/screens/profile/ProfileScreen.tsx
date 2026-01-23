@@ -17,6 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import ApiClient from '../../services/api/apiClient';
 import { Visit } from '../../types/visit';
 import { VisitCard } from '../../components/VisitCard';
+import { ScreenHeader } from '../../components/common/ScreenHeader';
 
 export const ProfileScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -86,10 +87,8 @@ export const ProfileScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Profile" />
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-        </View>
 
         {/* User Info Card */}
         <View style={styles.card}>
@@ -222,14 +221,6 @@ const styles = StyleSheet.create({
   content: {
     padding: theme.spacing.lg,
     paddingBottom: 120, // Extra space for floating tab bar
-  },
-  header: {
-    marginBottom: theme.spacing.lg,
-  },
-  title: {
-    fontSize: theme.fontSize.xxl,
-    fontWeight: theme.fontWeight.bold,
-    color: theme.colors.dark,
   },
   card: {
     backgroundColor: theme.colors.white,

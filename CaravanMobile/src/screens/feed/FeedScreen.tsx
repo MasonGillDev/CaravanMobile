@@ -1,22 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import * as Location from 'expo-location';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  FlatList,
   ActivityIndicator,
   Alert,
+  FlatList,
   RefreshControl,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { theme } from '../../styles/theme';
-import postService from '../../services/api/postService';
-import { Post } from '../../types/post';
-import { useAuth } from '../../context/AuthContext';
-import * as Location from 'expo-location';
 import { MentionText } from '../../components/MentionText';
+import { ScreenHeader } from '../../components/common/ScreenHeader';
+import { useAuth } from '../../context/AuthContext';
+import postService from '../../services/api/postService';
+import { theme } from '../../styles/theme';
+import { Post } from '../../types/post';
 
 export const FeedScreen: React.FC = () => {
   const navigation = useNavigation();
@@ -221,10 +222,7 @@ export const FeedScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Feed</Text>
-        <Text style={styles.headerSubtitle}>Posts within {radius}km</Text>
-      </View>
+      <ScreenHeader title="Feed"  />
 
       <FlatList
         data={posts}
@@ -258,27 +256,12 @@ export const FeedScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
+    backgroundColor: theme.colors.light,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.colors.text,
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginTop: 4,
   },
   listContent: {
     padding: 16,
@@ -288,8 +271,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderWidth: 2,
+    borderColor: theme.colors.accent,
   },
   postHeader: {
     flexDirection: 'row',
@@ -298,9 +281,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   username: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.colors.primary,
+    fontSize: 18,
+    fontWeight: '700',
+    color: theme.colors.secondary,
   },
   timestamp: {
     fontSize: 12,
@@ -325,6 +308,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
+    
     backgroundColor: theme.colors.border,
     justifyContent: 'center',
     alignItems: 'center',
@@ -334,7 +318,8 @@ const styles = StyleSheet.create({
   },
   voteText: {
     fontSize: 18,
-    color: theme.colors.textSecondary,
+    color: theme.colors.secondary,
+    
   },
   voteTextActive: {
     color: '#fff',
@@ -389,6 +374,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    borderWidth: 2,
+    borderColor: theme.colors.secondary,
   },
   createButtonText: {
     fontSize: 32,

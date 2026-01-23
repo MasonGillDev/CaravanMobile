@@ -11,8 +11,8 @@ export const MAPBOX_STYLE_URLS = {
   dark: 'mapbox://styles/mapbox/dark-v11',
   light: 'mapbox://styles/mapbox/light-v11',
   satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
-  // You can create custom styles at https://studio.mapbox.com/
-  custom: 'mapbox://styles/yourusername/yourStyleId'
+  warm: 'mapbox://styles/mapbox/standard',
+  custom: 'mapbox://styles/masongillmap/cmkpt6zxg002z01sr36vt1ya1'
 };
 
 export const DEFAULT_MAP_CONFIG = {
