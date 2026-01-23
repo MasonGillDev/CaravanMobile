@@ -1,10 +1,14 @@
 // Mapbox configuration
 // Get your token from https://account.mapbox.com/access-tokens/
 
-export const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoibWFzb25naWxsbWFwIiwiYSI6ImNtNXdxeW9odDAxMmkya290YzMzd3F2dzcifQ.QyV0hJQIwzfGsoCwUxyDWw';
+import Constants from 'expo-constants';
 
-// Replace with your actual Mapbox token
-// For production, store this in environment variables
+// Debug: Log what we're getting from env
+console.log('Constants.expoConfig?.extra:', Constants.expoConfig?.extra);
+
+export const MAPBOX_ACCESS_TOKEN = Constants.expoConfig?.extra?.mapboxAccessToken || 'pk.eyJ1IjoibWFzb25naWxsbWFwIiwiYSI6ImNtNXdxeW9odDAxMmkya290YzMzd3F2dzcifQ.QyV0hJQIwzfGsoCwUxyDWw';
+
+console.log('MAPBOX_ACCESS_TOKEN:', MAPBOX_ACCESS_TOKEN ? 'Token loaded successfully' : 'NO TOKEN!');
 
 export const MAPBOX_STYLE_URLS = {
   streets: 'mapbox://styles/mapbox/streets-v12',

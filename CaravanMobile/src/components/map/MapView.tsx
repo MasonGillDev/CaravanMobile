@@ -160,7 +160,8 @@ export const MapView: React.FC<MapViewProps> = ({
     };
 
     setupLocation();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
 
   // Handle selected place changes
   useEffect(() => {
@@ -217,22 +218,19 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   };
 
-  if (!isMapReady && !userLocation) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={styles.loadingText}>Loading map...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <MapboxGL.MapView
         ref={mapRef}
         style={styles.map}
         styleURL={MAPBOX_STYLE_URLS.streets}
-        onDidFinishLoadingMap={() => setIsMapReady(true)}
+        onDidFinishLoadingMap={() => {
+          console.log('Map finished loading!');
+          setIsMapReady(true);
+        }}
+        onMapLoadingError={() => {
+          console.error('Map loading error - Mapbox failed to initialize');
+        }}
         compassEnabled={DEFAULT_MAP_CONFIG.compassEnabled}
         pitchEnabled={DEFAULT_MAP_CONFIG.pitchEnabled}
         rotateEnabled={DEFAULT_MAP_CONFIG.rotateEnabled}
@@ -242,7 +240,7 @@ export const MapView: React.FC<MapViewProps> = ({
         <MapboxGL.Camera
           ref={cameraRef}
           defaultSettings={{
-            centerCoordinate: userLocation || [-118.2437, 34.0522], // LA default
+            centerCoordinate: userLocation || [-81.851675, 41.481933], // Default to user's approximate location
             zoomLevel: DEFAULT_MAP_CONFIG.zoomLevel,
           }}
         />

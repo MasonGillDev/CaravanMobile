@@ -60,6 +60,7 @@ export default {
       auth0Audience: process.env.AUTH0_AUDIENCE,
       apiUrl: process.env.API_URL,
       ticketmasterApiKey: process.env.TICKETMASTER_API_KEY,
+      mapboxAccessToken: process.env.MAPBOX_ACCESS_TOKEN,
     }
   }
 };
