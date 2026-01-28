@@ -48,6 +48,12 @@ export default {
           color: "#2563EB",
           sounds: []
         }
+      ],
+      [
+        "@rnmapbox/maps",
+        {
+          RNMapboxMapsDownloadToken: process.env.MAPBOX_DOWNLOAD_TOKEN,
+        }
       ]
     ],
     extra: {
