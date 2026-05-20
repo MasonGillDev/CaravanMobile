@@ -121,6 +121,17 @@ class ApiClient {
     return response.data;
   }
 
+  async submitVisit(data: {
+    latitude: number;
+    longitude: number;
+    horizontal_accuracy: number;
+    arrival_date: string;
+    departure_date: string | null;
+  }) {
+    const response = await this.axiosInstance.post('/api/location/visit', data);
+    return response.data;
+  }
+
   // Health check
   async healthCheck() {
     const response = await this.axiosInstance.get('/health');

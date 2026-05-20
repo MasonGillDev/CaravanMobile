@@ -86,9 +86,24 @@ export default function ProfileSetupScreen({ navigation }: any) {
         index: 0,
         routes: [{ name: 'Survey' }],
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Profile update error:', error);
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
+
+      // Handle specific error cases
+      if (error.response?.status === 409) {
+        Alert.alert(
+          'Username Already Taken',
+          'This username is already in use by another user. Please choose a different username.',
+          [{ text: 'OK' }]
+        );
+      } else if (error.response?.status === 400) {
+        const message = error.response?.data || 'Invalid profile data';
+        Alert.alert('Invalid Data', typeof message === 'string' ? message : 'Please check your profile information and try again.');
+      } else if (error.response?.status === 401) {
+        Alert.alert('Session Expired', 'Your session has expired. Please log in again.');
+      } else {
+        Alert.alert('Error', 'Failed to update profile. Please check your connection and try again.');
+      }
     } finally {
       setIsLoading(false);
     }

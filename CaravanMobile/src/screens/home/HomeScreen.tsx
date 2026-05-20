@@ -78,7 +78,7 @@ export const HomeScreen: React.FC = () => {
         <Text style={styles.logoText}>CARAVAN</Text>
         <TouchableOpacity
           style={styles.notificationButton}
-          onPress={handleNotificationPress}
+          onPress={handleNotificfationPress}
         >
           <Ionicons name="notifications" size={24} color={theme.colors.primary} />
           {unreadCount > 0 && (

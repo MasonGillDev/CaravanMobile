@@ -1,5 +1,7 @@
 import * as Location from 'expo-location';
+import { AppState, AppStateStatus, EmitterSubscription } from 'react-native';
 import ApiClient from '../api/apiClient';
+import VisitMonitoring, { VisitData } from './VisitMonitoring';
 
 interface LocationData {
   latitude: number;
@@ -8,27 +10,32 @@ interface LocationData {
 }
 
 /**
- * Clean, simple location tracking service
- * - Single tracking mechanism using watchPositionAsync
- * - Handles both foreground and background updates
+ * Hybrid location tracking service using CLVisit architecture
+ * - Background: Visit monitoring via CLVisit (low power, arrival/departure events)
+ * - Foreground: Precise location tracking when app is focused
  * - Smart queuing for offline scenarios
  */
 class LocationService {
   private static instance: LocationService;
   private apiClient: ApiClient;
+  private visitMonitoring: VisitMonitoring;
   private locationSubscription: Location.LocationSubscription | null = null;
-  private isTracking: boolean = false;
+  private visitEventSubscription: EmitterSubscription | null = null;
+  private isVisitMonitoringActive: boolean = false;
+  private isForegroundTrackingActive: boolean = false;
   private lastSentLocation: LocationData | null = null;
   private updateQueue: LocationData[] = [];
   private isFlushing: boolean = false;
-  
-  // Configuration
-  private readonly MIN_DISTANCE_METERS = 30; // Only update if moved 30+ meters
-  private readonly UPDATE_INTERVAL_MS = 300000; // Check every 30 seconds
-  private readonly ACCURACY_THRESHOLD = 5; // Only use locations with accuracy better than 50m
+  private appStateSubscription: any = null;
+
+  // Configuration for foreground precise tracking
+  private readonly FOREGROUND_MIN_DISTANCE_METERS = 10; // Increased precision when app is focused
+  private readonly FOREGROUND_UPDATE_INTERVAL_MS = 10000; // Check every 10 seconds in foreground
+  private readonly FOREGROUND_ACCURACY_THRESHOLD = 10; // 10m accuracy threshold for foreground
 
   private constructor() {
     this.apiClient = ApiClient.getInstance();
+    this.visitMonitoring = VisitMonitoring.getInstance();
   }
 
   static getInstance(): LocationService {
@@ -40,23 +47,24 @@ class LocationService {
 
   /**
    * Request location permissions
+   * NOTE: Native CLVisit module handles permission requests
+   * We only check here, don't request to avoid downgrading "Always" to "When In Use"
    */
   async requestPermissions(): Promise<boolean> {
     try {
-      // Request foreground permission first
-      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-      if (foregroundStatus !== 'granted') {
-        console.log('Foreground location permission denied');
-        return false;
+      // Just check status, don't request
+      // Native module already requested "Always" permission
+      const { status } = await Location.getForegroundPermissionsAsync();
+
+      if (status === 'granted') {
+        console.log('Location permission already granted');
+        return true;
       }
 
-      // Optionally request background permission (iOS will show additional prompt)
-      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-      console.log('Background permission status:', backgroundStatus);
-      
-      return true;
+      console.log('Location permission not granted - native module will handle');
+      return true; // Return true anyway, native module handles it
     } catch (error) {
-      console.error('Error requesting location permissions:', error);
+      console.error('Error checking location permissions:', error);
       return false;
     }
   }
@@ -70,15 +78,9 @@ class LocationService {
   }
 
   /**
-   * Start tracking location
+   * Start tracking location (both visit monitoring and app state handling)
    */
   async startTracking(): Promise<boolean> {
-    // Don't start if already tracking
-    if (this.isTracking) {
-      console.log('Location tracking already active');
-      return true;
-    }
-
     // Check permissions
     const hasPermission = await this.hasPermission();
     if (!hasPermission) {
@@ -90,35 +92,21 @@ class LocationService {
     }
 
     try {
-      console.log('Starting location tracking...');
-      
-      // Get and send current location immediately
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      
-      const locationData: LocationData = {
-        latitude: currentLocation.coords.latitude,
-        longitude: currentLocation.coords.longitude,
-        accuracy: currentLocation.coords.accuracy,
-      };
-      
-      await this.processLocation(locationData);
+      // Clean up old Expo background task if it exists (migration cleanup)
+      await this.cleanupOldBackgroundTask();
 
-      // Start watching for location changes
-      this.locationSubscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: this.UPDATE_INTERVAL_MS,
-          distanceInterval: this.MIN_DISTANCE_METERS,
-        },
-        (location) => {
-          this.handleLocationUpdate(location);
-        }
-      );
+      // Start visit monitoring (always running in background)
+      await this.startVisitMonitoring();
 
-      this.isTracking = true;
-      console.log('Location tracking started successfully');
+      // Set up app state listener for foreground tracking
+      this.setupAppStateListener();
+
+      // If app is currently active, start foreground tracking
+      if (AppState.currentState === 'active') {
+        await this.startForegroundTracking();
+      }
+
+      console.log('Location tracking initialized successfully');
       return true;
     } catch (error) {
       console.error('Failed to start location tracking:', error);
@@ -127,10 +115,177 @@ class LocationService {
   }
 
   /**
-   * Stop tracking location
+   * Clean up old Expo background task (migration from old implementation)
    */
-  async stopTracking(): Promise<void> {
-    if (!this.isTracking) {
+  private async cleanupOldBackgroundTask(): Promise<void> {
+    try {
+      const TaskManager = require('expo-task-manager');
+      const VISIT_MONITORING_TASK = 'VISIT_MONITORING_TASK';
+
+      const isRegistered = await TaskManager.isTaskRegisteredAsync(VISIT_MONITORING_TASK);
+      if (isRegistered) {
+        console.log('Cleaning up old Expo background task...');
+        await Location.stopLocationUpdatesAsync(VISIT_MONITORING_TASK);
+        console.log('Old background task removed');
+      }
+    } catch (error) {
+      // Ignore errors - task might not exist
+      console.log('No old background task to clean up');
+    }
+  }
+
+  /**
+   * Start background visit monitoring using native CLVisit
+   */
+  private async startVisitMonitoring(): Promise<void> {
+    if (this.isVisitMonitoringActive) {
+      console.log('Visit monitoring already active');
+      return;
+    }
+
+    try {
+      // Check if native visit monitoring is available (iOS only)
+      if (!this.visitMonitoring.isAvailable()) {
+        console.warn('Native visit monitoring not available (iOS only)');
+        return;
+      }
+
+      // Set up visit event listener
+      this.visitEventSubscription = this.visitMonitoring.addVisitListener((visit: VisitData) => {
+        this.handleVisitDetected(visit);
+      });
+
+      // Listen for authorization changes to know when to start monitoring
+      this.visitMonitoring.addAuthorizationListener((event) => {
+        console.log('[LocationService] Auth status changed to:', event.status);
+
+        if (event.status === 'authorizedAlways' && !this.isVisitMonitoringActive) {
+          // Permission granted! Now we can start monitoring
+          this.visitMonitoring.startMonitoring()
+            .then(() => {
+              this.isVisitMonitoringActive = true;
+              console.log('✅ Native CLVisit monitoring started after permission granted');
+            })
+            .catch((error) => {
+              console.error('Failed to start visit monitoring after permission granted:', error);
+            });
+        }
+      });
+
+      // Request always authorization
+      await this.visitMonitoring.requestAlwaysAuthorization();
+
+      // Small delay to let permission status propagate, then check if already granted
+      setTimeout(async () => {
+        // Check current permission via expo-location (native module status may not be immediately available)
+        const { status } = await Location.getBackgroundPermissionsAsync();
+        console.log('[LocationService] Checking permission after request, background status:', status);
+
+        if (status === 'granted' && !this.isVisitMonitoringActive) {
+          // Permission already granted (e.g., from previous install)
+          console.log('[LocationService] Permission already granted, starting monitoring now');
+          try {
+            await this.visitMonitoring.startMonitoring();
+            this.isVisitMonitoringActive = true;
+            console.log('✅ Native CLVisit monitoring started with existing permission');
+          } catch (error) {
+            console.error('Failed to start visit monitoring with existing permission:', error);
+          }
+        }
+      }, 500);
+
+      console.log('Visit monitoring setup complete');
+    } catch (error) {
+      console.error('Failed to start visit monitoring:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Handle visit detection from native module
+   */
+  private async handleVisitDetected(visit: VisitData): Promise<void> {
+    console.log('[VisitDetected]', {
+      lat: visit.latitude.toFixed(6),
+      lng: visit.longitude.toFixed(6),
+      accuracy: visit.horizontalAccuracy,
+      arrival: visit.arrivalDate,
+      departure: visit.departureDate,
+    });
+
+    try {
+      const visitData = {
+        latitude: visit.latitude,
+        longitude: visit.longitude,
+        horizontal_accuracy: visit.horizontalAccuracy,
+        arrival_date: visit.arrivalDate,
+        departure_date: visit.departureDate,
+      };
+
+      const response = await this.apiClient.submitVisit(visitData);
+      console.log('[VisitDetected] Submitted successfully:', response);
+    } catch (error: any) {
+      console.error('[VisitDetected] Failed to submit visit:', error?.message || error);
+    }
+  }
+
+  /**
+   * Start precise foreground location tracking
+   */
+  private async startForegroundTracking(): Promise<void> {
+    if (this.isForegroundTrackingActive) {
+      console.log('Foreground tracking already active');
+      return;
+    }
+
+    try {
+      console.log('Starting foreground location tracking...');
+
+      // Check if we have location permission (granted by native module)
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Waiting for location permission from native module...');
+        // Permission will be granted by native module, skip foreground tracking for now
+        return;
+      }
+
+      // Get and send current location immediately
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const locationData: LocationData = {
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+        accuracy: currentLocation.coords.accuracy,
+      };
+
+      await this.processLocation(locationData);
+
+      // Start watching for location changes with increased precision
+      this.locationSubscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: this.FOREGROUND_UPDATE_INTERVAL_MS,
+          distanceInterval: this.FOREGROUND_MIN_DISTANCE_METERS,
+        },
+        (location) => {
+          this.handleLocationUpdate(location);
+        }
+      );
+
+      this.isForegroundTrackingActive = true;
+      console.log('Foreground tracking started');
+    } catch (error) {
+      console.error('Failed to start foreground tracking:', error);
+    }
+  }
+
+  /**
+   * Stop precise foreground location tracking
+   */
+  private async stopForegroundTracking(): Promise<void> {
+    if (!this.isForegroundTrackingActive) {
       return;
     }
 
@@ -139,16 +294,74 @@ class LocationService {
       this.locationSubscription = null;
     }
 
-    this.isTracking = false;
-    console.log('Location tracking stopped');
+    this.isForegroundTrackingActive = false;
+    console.log('Foreground tracking stopped');
   }
 
   /**
-   * Handle location updates from the watcher
+   * Set up app state listener to start/stop foreground tracking
+   */
+  private setupAppStateListener(): void {
+    if (this.appStateSubscription) {
+      return; // Already set up
+    }
+
+    this.appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      console.log('App state changed to:', nextAppState);
+
+      if (nextAppState === 'active') {
+        // App came to foreground - start precise tracking
+        console.log('App foregrounded - starting precise location tracking');
+        this.startForegroundTracking();
+      } else if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // App went to background - stop precise tracking (visit monitoring continues)
+        console.log('App backgrounded - stopping precise location tracking');
+        this.stopForegroundTracking();
+      }
+    });
+
+    console.log('App state listener registered');
+  }
+
+  /**
+   * Stop all location tracking
+   */
+  async stopTracking(): Promise<void> {
+    // Stop foreground tracking
+    await this.stopForegroundTracking();
+
+    // Stop visit monitoring
+    if (this.isVisitMonitoringActive) {
+      try {
+        await this.visitMonitoring.stopMonitoring();
+
+        if (this.visitEventSubscription) {
+          this.visitEventSubscription.remove();
+          this.visitEventSubscription = null;
+        }
+
+        this.isVisitMonitoringActive = false;
+        console.log('Native visit monitoring stopped');
+      } catch (error) {
+        console.error('Error stopping visit monitoring:', error);
+      }
+    }
+
+    // Remove app state listener
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
+
+    console.log('All location tracking stopped');
+  }
+
+  /**
+   * Handle location updates from the foreground watcher
    */
   private async handleLocationUpdate(location: Location.LocationObject): Promise<void> {
-    // Ignore if accuracy is too poor
-    if (location.coords.accuracy && location.coords.accuracy > this.ACCURACY_THRESHOLD) {
+    // Ignore if accuracy is too poor for foreground tracking
+    if (location.coords.accuracy && location.coords.accuracy > this.FOREGROUND_ACCURACY_THRESHOLD) {
       console.log(`Skipping location update - poor accuracy: ${location.coords.accuracy}m`);
       return;
     }
@@ -249,7 +462,7 @@ class LocationService {
       newLocation.longitude
     );
 
-    return distance >= this.MIN_DISTANCE_METERS;
+    return distance >= this.FOREGROUND_MIN_DISTANCE_METERS;
   }
 
   /**
@@ -274,7 +487,21 @@ class LocationService {
    * Get current tracking status
    */
   isActive(): boolean {
-    return this.isTracking;
+    return this.isVisitMonitoringActive || this.isForegroundTrackingActive;
+  }
+
+  /**
+   * Check if visit monitoring is active
+   */
+  isVisitTrackingActive(): boolean {
+    return this.isVisitMonitoringActive;
+  }
+
+  /**
+   * Check if foreground tracking is active
+   */
+  isForegroundActive(): boolean {
+    return this.isForegroundTrackingActive;
   }
 
   /**
